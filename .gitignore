@@ -1,0 +1,12 @@
+# Keil MDK 编译产物（可重新生成，不用入库）
+MDK-ARM/Objects/
+MDK-ARM/Listings/
+MDK-ARM/*.uvguix.*
+MDK-ARM/*.bak
+*.o
+*.d
+*.crf
+*.axf
+*.hex
+*.map
+*.lst
