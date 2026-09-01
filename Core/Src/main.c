@@ -60,7 +60,7 @@ static void MX_TIM2_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
- uint8_t t_flag = 0;
+volatile uint8_t t_flag = 0;
 /* USER CODE END 0 */
 
 /**
