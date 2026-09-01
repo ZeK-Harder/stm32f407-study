@@ -3,7 +3,9 @@
 "day1_blink\main.o"
 "day1_blink\stm32f4xx_it.o"
 "day1_blink\stm32f4xx_hal_msp.o"
-"day1_blink\stm32f4xx_hal_uart.o"
+"day1_blink\key.o"
+"day1_blink\stm32f4xx_hal_tim.o"
+"day1_blink\stm32f4xx_hal_tim_ex.o"
 "day1_blink\stm32f4xx_hal_rcc.o"
 "day1_blink\stm32f4xx_hal_rcc_ex.o"
 "day1_blink\stm32f4xx_hal_flash.o"
@@ -17,6 +19,7 @@
 "day1_blink\stm32f4xx_hal_cortex.o"
 "day1_blink\stm32f4xx_hal.o"
 "day1_blink\stm32f4xx_hal_exti.o"
+"day1_blink\stm32f4xx_hal_uart.o"
 "day1_blink\system_stm32f4xx.o"
 --library_type=microlib --strict --scatter "day1_blink\day1_blink.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
