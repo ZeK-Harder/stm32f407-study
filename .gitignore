@@ -13,3 +13,4 @@ MDK-ARM/*.bak
 MDK-ARM/*.i
 MDK-ARM/day1_blink/
 MDK-ARM/DebugConfig/MDK-ARM/*.uvoptx
+MDK-ARM/*.uvoptx
