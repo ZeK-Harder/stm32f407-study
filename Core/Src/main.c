@@ -42,6 +42,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim14;
 
 UART_HandleTypeDef huart1;
 
@@ -54,6 +55,7 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM14_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -71,7 +73,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	uint16_t ccr = 0;
+	uint8_t dir = 1;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -94,38 +97,34 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
+  MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
 	key_init();
 	HAL_TIM_Base_Start_IT(&htim2);
+	HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
-	{
-    if (key_event & 0x01) {            /* KEY0 */
-        key_event &= ~0x01;            /* 先清标志，防止重复 */
-        HAL_Delay(15);                 /* 消抖 */
-        printf("KEY0 Pressed\r\n");
-    }
-    else if (key_event & 0x02) {       /* KEY1 */
-        key_event &= ~0x02;
-        HAL_Delay(15);
-        printf("KEY1 Pressed\r\n");
-    }
-    else if (key_event & 0x04) {       /* KEY2 */
-        key_event &= ~0x04;
-        HAL_Delay(15);
-        printf("KEY2 Pressed\r\n");
-    }
-    else if (key_event & 0x08) {       /* WKUP */
-        key_event &= ~0x08;
-        HAL_Delay(15);
-        printf("WKUP Pressed\r\n");
-    }
-	}
-}	
+  {
+    /* USER CODE END WHILE */
+		if(dir==1)
+		{
+			if(ccr<999) ccr+=1;
+			else dir=0;
+		}
+		else
+		{
+			if(ccr>0) ccr-=1;
+			else dir=1;
+		}
+		__HAL_TIM_SET_COMPARE(&htim14, TIM_CHANNEL_1, ccr);
+    HAL_Delay(1);
+		/* USER CODE BEGIN 3 */
+  }
   /* USER CODE END 3 */
+}
 
 /**
   * @brief System Clock Configuration
@@ -144,12 +143,11 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 8;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 4;
   RCC_OscInitStruct.PLL.PLLN = 168;
   RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
   RCC_OscInitStruct.PLL.PLLQ = 4;
@@ -219,6 +217,52 @@ static void MX_TIM2_Init(void)
 }
 
 /**
+  * @brief TIM14 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM14_Init(void)
+{
+
+  /* USER CODE BEGIN TIM14_Init 0 */
+
+  /* USER CODE END TIM14_Init 0 */
+
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM14_Init 1 */
+
+  /* USER CODE END TIM14_Init 1 */
+  htim14.Instance = TIM14;
+  htim14.Init.Prescaler = 83;
+  htim14.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim14.Init.Period = 999;
+  htim14.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim14.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim14) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim14) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_LOW;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim14, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM14_Init 2 */
+
+  /* USER CODE END TIM14_Init 2 */
+  HAL_TIM_MspPostInit(&htim14);
+
+}
+
+/**
   * @brief USART1 Initialization Function
   * @param None
   * @retval None
@@ -270,7 +314,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_9|GPIO_PIN_10, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOF, GPIO_PIN_10, GPIO_PIN_RESET);
 
   /*Configure GPIO pins : PE2 PE3 PE4 */
   GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4;
@@ -278,8 +322,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PF9 PF10 */
-  GPIO_InitStruct.Pin = GPIO_PIN_9|GPIO_PIN_10;
+  /*Configure GPIO pin : PF10 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
