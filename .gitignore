@@ -10,3 +10,6 @@ MDK-ARM/*.bak
 *.hex
 *.map
 *.lst
+MDK-ARM/*.i
+MDK-ARM/day1_blink/
+MDK-ARM/DebugConfig/

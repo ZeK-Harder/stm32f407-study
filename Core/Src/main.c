@@ -46,7 +46,7 @@ TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
-
+volatile uint8_t key_event = 0;   /* bit0=KEY0, bit1=KEY1, bit2=KEY2, bit3=WKUP */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -102,18 +102,30 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
-  {
-    /* USER CODE END WHILE */
-		uint8_t key = key_scan();
-    if (key != KEY_NONE)
-        printf("KEY%d pressed\r\n", key);
-    /* USER CODE BEGIN 3 */
-		while (t_flag == 0);    /* ← 空转等待，循环体是空的 */
-        t_flag = 0;
-        printf("tick\r\n");     /* printf 移到等待结束之后 */	
-  }
+	{
+    if (key_event & 0x01) {            /* KEY0 */
+        key_event &= ~0x01;            /* 先清标志，防止重复 */
+        HAL_Delay(15);                 /* 消抖 */
+        printf("KEY0 Pressed\r\n");
+    }
+    else if (key_event & 0x02) {       /* KEY1 */
+        key_event &= ~0x02;
+        HAL_Delay(15);
+        printf("KEY1 Pressed\r\n");
+    }
+    else if (key_event & 0x04) {       /* KEY2 */
+        key_event &= ~0x04;
+        HAL_Delay(15);
+        printf("KEY2 Pressed\r\n");
+    }
+    else if (key_event & 0x08) {       /* WKUP */
+        key_event &= ~0x08;
+        HAL_Delay(15);
+        printf("WKUP Pressed\r\n");
+    }
+	}
+}	
   /* USER CODE END 3 */
-}
 
 /**
   * @brief System Clock Configuration
@@ -262,7 +274,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : PE2 PE3 PE4 */
   GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_3|GPIO_PIN_4;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
@@ -275,9 +287,22 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PA0 */
   GPIO_InitStruct.Pin = GPIO_PIN_0;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI3_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI3_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -294,6 +319,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM2)
         t_flag = 1;
+}
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if (GPIO_Pin == GPIO_PIN_4)      { key_event |= 0x01; }   /* KEY0 / PE4 */
+    else if (GPIO_Pin == GPIO_PIN_3) { key_event |= 0x02; }   /* KEY1 / PE3 */
+    else if (GPIO_Pin == GPIO_PIN_2) { key_event |= 0x04; }   /* KEY2 / PE2 */
+    else if (GPIO_Pin == GPIO_PIN_0) { key_event |= 0x08; }   /* WKUP / PA0 */
 }
 /* USER CODE END 4 */
 
