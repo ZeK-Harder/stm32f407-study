@@ -48,6 +48,8 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t key_event = 0;   /* bit0=KEY0, bit1=KEY1, bit2=KEY2, bit3=WKUP */
+uint8_t rx_byte;                 /* 收到的这个字节 */
+volatile uint8_t rx_flag = 0;    /* ISR 置位，主循环清除 */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -63,6 +65,8 @@ static void MX_TIM14_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 volatile uint8_t t_flag = 0;
+#define LED1_ON()   (GPIOF->BSRR = (1UL << 26))   /* BR10 → PF10 拉低 → LED1 亮 */
+#define LED1_OFF()  (GPIOF->BSRR = (1UL << 10))   /* BS10 → PF10 拉高 → LED1 灭 */
 /* USER CODE END 0 */
 
 /**
@@ -102,6 +106,7 @@ int main(void)
 	key_init();
 	HAL_TIM_Base_Start_IT(&htim2);
 	HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
+	HAL_UART_Receive_IT(&huart1, &rx_byte, 1);   /* 开始等第一个字节 */
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -109,19 +114,17 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-		if(dir==1)
+
+    /* USER CODE BEGIN 3 */
+		LED1_ON();
+		HAL_Delay(1000);
+		LED1_OFF();
+		HAL_Delay(1000);
+		if (rx_flag)
 		{
-			if(ccr<999) ccr+=1;
-			else dir=0;
+			rx_flag = 0;
+			printf("got: 0x%02X (%c)\r\n", rx_byte, rx_byte);
 		}
-		else
-		{
-			if(ccr>0) ccr-=1;
-			else dir=1;
-		}
-		__HAL_TIM_SET_COMPARE(&htim14, TIM_CHANNEL_1, ccr);
-    HAL_Delay(1);
-		/* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -370,6 +373,14 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     else if (GPIO_Pin == GPIO_PIN_3) { key_event |= 0x02; }   /* KEY1 / PE3 */
     else if (GPIO_Pin == GPIO_PIN_2) { key_event |= 0x04; }   /* KEY2 / PE2 */
     else if (GPIO_Pin == GPIO_PIN_0) { key_event |= 0x08; }   /* WKUP / PA0 */
+}
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        rx_flag = 1;   /* 只置标志——D3 学的"ISR 要短"原则 */
+        HAL_UART_Receive_IT(&huart1, &rx_byte, 1);   /* 续杯：开始等下一个字节 */
+    }
 }
 /* USER CODE END 4 */
 
