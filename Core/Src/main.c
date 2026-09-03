@@ -45,16 +45,19 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim14;
 
 UART_HandleTypeDef huart1;
+DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
 volatile uint8_t key_event = 0;   /* bit0=KEY0, bit1=KEY1, bit2=KEY2, bit3=WKUP */
-uint8_t rx_byte;                 /* 收到的这个字节 */
-volatile uint8_t rx_flag = 0;    /* ISR 置位，主循环清除 */
+#define RX_BUF_SIZE  64            /* 接收缓冲区大小 */
+uint8_t  rx_buf[RX_BUF_SIZE];      /* DMA 把收到的字节自动搬到这里 */
+volatile uint16_t rx_len = 0;      /* 回调置为本次帧长，主循环读它 */
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_DMA_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM14_Init(void);
@@ -99,6 +102,7 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_TIM14_Init();
@@ -106,7 +110,7 @@ int main(void)
 	key_init();
 	HAL_TIM_Base_Start_IT(&htim2);
 	HAL_TIM_PWM_Start(&htim14, TIM_CHANNEL_1);
-	HAL_UART_Receive_IT(&huart1, &rx_byte, 1);   /* 开始等第一个字节 */
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, RX_BUF_SIZE);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -116,14 +120,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-		LED1_ON();
-		HAL_Delay(1000);
-		LED1_OFF();
-		HAL_Delay(1000);
-		if (rx_flag)
+//		LED1_ON();
+//		HAL_Delay(200);
+//		LED1_OFF();
+//		HAL_Delay(200);
+		if (rx_len > 0)
 		{
-			rx_flag = 0;
-			printf("got: 0x%02X (%c)\r\n", rx_byte, rx_byte);
+			uint16_t i;
+			printf("RX %u bytes: ", rx_len);
+			for (i = 0; i < rx_len; i++)
+					printf("%02X ", rx_buf[i]);
+			printf("\r\n");
+			rx_len = 0;
 		}
   }
   /* USER CODE END 3 */
@@ -299,6 +307,22 @@ static void MX_USART1_UART_Init(void)
 }
 
 /**
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void)
+{
+
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA2_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA2_Stream2_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA2_Stream2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA2_Stream2_IRQn);
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -374,12 +398,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     else if (GPIO_Pin == GPIO_PIN_2) { key_event |= 0x04; }   /* KEY2 / PE2 */
     else if (GPIO_Pin == GPIO_PIN_0) { key_event |= 0x08; }   /* WKUP / PA0 */
 }
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
     if (huart->Instance == USART1)
     {
-        rx_flag = 1;   /* 只置标志——D3 学的"ISR 要短"原则 */
-        HAL_UART_Receive_IT(&huart1, &rx_byte, 1);   /* 续杯：开始等下一个字节 */
+        rx_len = Size;   /* 这一帧收到了几个字节 */
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, RX_BUF_SIZE);  /* 重新武装，等下一帧 */
     }
 }
 /* USER CODE END 4 */
